@@ -20,20 +20,22 @@ namespace Foo.ActiveMQ
             Console.WriteLine("Send an item to the queue.");
 
             string dequeuedItem = DequeueFromQueue(queueDestination);
-            Console.WriteLine($"Dequeued item is {dequeuedItem} from the queue.");
+            Console.WriteLine($"Dequeued item is '{dequeuedItem}' from the queue.");
 
             EnqueueToQueue(queueDestination, "foo message1");
             EnqueueToQueue(queueDestination, "foo message2");
             EnqueueToQueue(queueDestination, "foo message3");
 
             int pendingMessageCount = GetPendingMessagesCount(queueDestination);
-            Console.WriteLine($"Pending message count is {pendingMessageCount}.");
+            Console.WriteLine($"Pending message count is '{pendingMessageCount}'.");
 
             EnqueueToQueue(queueDestination, "foo message4");
+            Console.WriteLine("Send an item to the queue. Write them but do not enqueue:");
+
             List<string> pendingMessages = GetPendingMessages(queueDestination);
             foreach (var pendingMessage in pendingMessages)
             {
-                Console.WriteLine($"Pending message is {pendingMessage}.");
+                Console.WriteLine($"Pending message is '{pendingMessage}'.");
             }
 
 
@@ -42,16 +44,16 @@ namespace Foo.ActiveMQ
             DeleteDestination(queueDestination);
             Console.WriteLine("Deleted destination operation was successfull.");
 
-            EnqueueToQueue(queueDestination, "foo new message (after delete destination).");
+            EnqueueToQueue(queueDestination, "foo new message");
             Console.WriteLine("Send an item to the queue (after delete destination).");
 
             dequeuedItem = DequeueFromQueue(queueDestination);
-            Console.WriteLine($"Dequeued item (after delete destination) is {dequeuedItem} from the queue.");
+            Console.WriteLine($"Dequeued item (after delete destination) is '{dequeuedItem}' from the queue.");
 
 
 
             // topic
-            var topicTask = Task.Factory.StartNew(() =>
+            var topicDequeueTask = Task.Factory.StartNew(() =>
             {
                 var exit = false;
 
@@ -61,21 +63,19 @@ namespace Foo.ActiveMQ
                     var dequeuedItem = DequeueFromTopic(queueDestination);
                     if (!string.IsNullOrEmpty(dequeuedItem))
                     {
-                        Console.WriteLine($"Dequeued an item is {dequeuedItem} from the topic");
-                        exit = false;
+                        Console.WriteLine($"Dequeued an item is '{dequeuedItem}' from the topic");
+                        exit = true;
                     }
-
-                    // if there is no data, it will again this operation until data came
-                    Thread.Sleep(1000);
                 }
             });
 
-            Thread.Sleep(1000);
-    
-            EnqueueToTopic(queueDestination, "foo topic message");
-            Console.WriteLine("Send an item to the topic");
+            var topicEnqueueTask = Task.Factory.StartNew(() =>
+            {
+                EnqueueToTopic(queueDestination, "foo topic message");
+                Console.WriteLine("Send an item to the topic");
+            });
 
-            Task.WaitAll(topicTask);
+            Task.WaitAll(topicEnqueueTask, topicDequeueTask);
 
             Console.WriteLine("Program has finished. Press any key to close your application.");
             Console.ReadKey();
